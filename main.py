@@ -42,14 +42,11 @@ class TelemetryData:
         # Boost(f), Fuel(f), Dist(f), BestLap(f), LastLap(f), CurLap(f), CurRaceTime(f)
         # LapNum(H), RacePos(B), Accel(B), Brake(B), Clutch(B), HandBrake(B), Gear(B), Steer(b)
         # Line(b), AIBrake(b)
-        # TireWear(4f) - NOTE: Parsing varies here slightly by game version, 
-        # usually there is padding. We will unpack strictly based on prompt list.
+        # TireWear(4f)
         # TrackOrdinal(i)
 
-        fmt = "<iIffffffffffffffffffffffffffffffffffffffffffffffffffffiiiiifffffffffffffffffffffHBBBBBBbbbfiii"
-        
-        # Note: The format string above is an approximation. 
-        # To be robust, we unpack chunks to handle potential padding differences in specific games.
+        # Corrected format string tail to match 4 floats for TireWear and 1 int for TrackOrdinal
+        fmt = "<iIffffffffffffffffffffffffffffffffffffffffffffffffffffiiiiifffffffffffffffffffffHBBBBBBbbbffffi"
         
         # --- PARSING ---
         # Sled Portion
@@ -100,14 +97,23 @@ class TelemetryData:
         self.input_steer = struct.unpack("<b", data[308:309])[0]
         self.driving_line = struct.unpack("<b", data[309:310])[0]
         self.ai_brake_diff = struct.unpack("<b", data[310:311])[0]
+        
+        # Tail
+        self.tire_wear = struct.unpack("<4f", data[311:327])
+        self.track_ordinal = struct.unpack("<i", data[327:331])[0]
 
 class Commentator:
     def __init__(self):
         self.last_comment_time = 0
-        self.last_gear = 0
+        self.last_gear = 11 # Start assuming neutral/unknown
         self.was_race_on = 0
         self.max_speed_hit = 0.0
         self.last_race_pos = 0
+
+    def get_gear_display(self, gear_val):
+        if gear_val == 0: return "R"
+        if gear_val == 11: return "N" # Treating 11 as Neutral based on user logs
+        return str(gear_val)
 
     def get_commentary(self, packet):
         """
@@ -160,10 +166,18 @@ class Commentator:
             msgs.append(f"🔴 REDLINING! Engine screaming at {int(packet.cur_rpm)} RPM!")
         
         # 4. Gears
+        # Logic: We only announce shifting to actual drive gears or reverse.
+        # We ignore shifting 'to' 11 (Neutral) to prevent spam during the shift action.
         if packet.input_gear != self.last_gear:
-            msgs.append(f"⚙️ Shifted to Gear {packet.input_gear}")
+            # Check if this is a "real" gear engagement we want to announce
+            # We skip 11 (Neutral) for commentary
+            if packet.input_gear != 11:
+                display_gear = self.get_gear_display(packet.input_gear)
+                msgs.append(f"⚙️ Shifted to Gear {display_gear}")
+                priority = True
+            
+            # We still update last_gear so we know when we leave Neutral later
             self.last_gear = packet.input_gear
-            priority = True
 
         # 5. Inputs
         if packet.input_handbrake > 0:
@@ -209,8 +223,9 @@ class Commentator:
     def get_dashboard_str(self, packet):
         """Returns a string for a constant dashboard update"""
         mph = packet.speed * 2.23694
+        gear_str = self.get_gear_display(packet.input_gear)
         return (f"POS: {packet.race_pos} | LAP: {packet.lap_number} | "
-                f"GEAR: {packet.input_gear} | MPH: {mph:.1f} | RPM: {int(packet.cur_rpm)}")
+                f"GEAR: {gear_str} | MPH: {mph:.1f} | RPM: {int(packet.cur_rpm)}")
 
 
 def main():
