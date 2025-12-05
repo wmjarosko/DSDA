@@ -25,6 +25,7 @@ class TelemetryData:
 
         self.valid = True
         
+
         # --- PARSING ---
         # Sled Portion (First 232 bytes)
         self.is_race_on = struct.unpack("<i", data[0:4])[0]
@@ -74,6 +75,10 @@ class TelemetryData:
         self.input_steer = struct.unpack("<b", data[308:309])[0]
         self.driving_line = struct.unpack("<b", data[309:310])[0]
         self.ai_brake_diff = struct.unpack("<b", data[310:311])[0]
+        
+        # Tail
+        self.tire_wear = struct.unpack("<4f", data[311:327])
+        self.track_ordinal = struct.unpack("<i", data[327:331])[0]
 
 class Commentator:
     """
@@ -81,9 +86,15 @@ class Commentator:
     """
     def __init__(self):
         self.last_comment_time = 0
-        self.last_gear = 0
+        self.last_gear = 11 # Start assuming neutral/unknown
         self.was_race_on = 0
         self.max_speed_hit = 0.0
+        self.last_race_pos = 0
+
+    def get_gear_display(self, gear_val):
+        if gear_val == 0: return "R"
+        if gear_val == 11: return "N" # Treating 11 as Neutral based on user logs
+        return str(gear_val)
 
     def get_commentary(self, packet):
         """
@@ -110,7 +121,20 @@ class Commentator:
         if not packet.is_race_on:
             return msgs[0] if msgs else None
 
-        # 2. Engine & Speed
+        # 2. Position Ranking Changes
+        # Initialize last_race_pos if it's 0 (start of script/race)
+        if self.last_race_pos == 0 and packet.race_pos > 0:
+            self.last_race_pos = packet.race_pos
+            
+        if packet.race_pos != self.last_race_pos and packet.race_pos > 0:
+            if packet.race_pos < self.last_race_pos:
+                msgs.append(f"⬆️ OVERTAKE! Moved up to P{packet.race_pos}!")
+                priority = True
+            else:
+                msgs.append(f"⬇️ LOST POSITION! Dropped to P{packet.race_pos}.")
+            self.last_race_pos = packet.race_pos
+
+        # 3. Engine & Speed
         mph = packet.speed * 2.23694
         if mph > self.max_speed_hit:
             self.max_speed_hit = mph
@@ -122,13 +146,21 @@ class Commentator:
         if rpm_percent > 0.95:
             msgs.append(f"🔴 REDLINING! Engine screaming at {int(packet.cur_rpm)} RPM!")
         
-        # 3. Gears
+        # 4. Gears
+        # Logic: We only announce shifting to actual drive gears or reverse.
+        # We ignore shifting 'to' 11 (Neutral) to prevent spam during the shift action.
         if packet.input_gear != self.last_gear:
-            msgs.append(f"⚙️ Shifted to Gear {packet.input_gear}")
+            # Check if this is a "real" gear engagement we want to announce
+            # We skip 11 (Neutral) for commentary
+            if packet.input_gear != 11:
+                display_gear = self.get_gear_display(packet.input_gear)
+                msgs.append(f"⚙️ Shifted to Gear {display_gear}")
+                priority = True
+            
+            # We still update last_gear so we know when we leave Neutral later
             self.last_gear = packet.input_gear
-            priority = True
 
-        # 4. Inputs
+        # 5. Inputs
         if packet.input_handbrake > 0:
             msgs.append("⚓ Handbrake pulled!")
             priority = True
@@ -137,7 +169,7 @@ class Commentator:
              # Check if locking up (Wheel rotation vs Speed)
              msgs.append("🛑 HARD BRAKING!")
 
-        # 5. Traction & Slip (Index 2 is Rear Left, 3 is Rear Right usually)
+        # 6. Traction & Slip (Index 2 is Rear Left, 3 is Rear Right usually)
         # Slip Ratio > 1.0 means loss of traction
         max_slip = max([abs(x) for x in packet.tire_slip_ratio])
         if max_slip > 1.2:
@@ -146,7 +178,7 @@ class Commentator:
         elif max_slip > 0.8:
             msgs.append("⚠️ Tires struggling for grip...")
 
-        # 6. Environment
+        # 7. Environment
         max_puddle = max(packet.puddle_depth)
         if max_puddle > 0.5:
             msgs.append("💦 SPLASH! Hit a deep puddle!")
@@ -156,7 +188,7 @@ class Commentator:
         if rumble_count > 0:
             msgs.append("〰️ Rattling over the rumble strips.")
 
-        # 7. Air
+        # 8. Air
         # If all 4 suspension values are fully extended (approx 0.0 or close to it depending on normalization)
         # Using normalized: 0.0f = max stretch
         if all(x < 0.1 for x in packet.norm_suspension) and mph > 20:
@@ -172,8 +204,9 @@ class Commentator:
     def get_dashboard_str(self, packet):
         """Returns a string for a constant dashboard update"""
         mph = packet.speed * 2.23694
+        gear_str = self.get_gear_display(packet.input_gear)
         return (f"POS: {packet.race_pos} | LAP: {packet.lap_number} | "
-                f"GEAR: {packet.input_gear} | MPH: {mph:.1f} | RPM: {int(packet.cur_rpm)}")
+                f"GEAR: {gear_str} | MPH: {mph:.1f} | RPM: {int(packet.cur_rpm)}")
 
 
 def main():
