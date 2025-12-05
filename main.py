@@ -18,41 +18,15 @@ class TelemetryData:
         self.valid = False
         
         # The V2 'Dash' packet is typically 324 bytes. 
-        # If the game sends V1 ('Sled'), it will be 232 bytes.
+        # The parser logic specifically checks for the Dash format size requirement (>= 311 bytes).
+        # Sled / V1 packets (232 bytes) are ignored by this parser as they lack the 'Dash' specific fields.
         if len(data) < 311: 
-            # Not enough data for the full Dash format
             return
 
         self.valid = True
         
-        # Create a struct format string based on the user prompt
-        # < = little-endian (standard for PC/Xbox)
-        # i = S32, I = U32, f = F32, H = U16, B = U8, b = S8
-        
-        # 1. Sled / V1 Base Data (First 232 bytes)
-        # 12 Integers/Floats mixed
-        # IsRaceOn(i), TimestampMS(I), MaxRPM(f), IdleRPM(f), CurRPM(f)
-        # AccelX/Y/Z(3f), VelX/Y/Z(3f), AngVelX/Y/Z(3f), YawPitchRoll(3f)
-        # NormSusp(4f), SlipRatio(4f), WheelSpeed(4f), RumbleStrip(4i), Puddle(4f), SurfRumble(4f)
-        # SlipAngle(4f), CombSlip(4f), SuspTravel(4f)
-        # CarOrdinal(i), CarClass(i), CarPerf(i), DriveTrain(i), Cylinders(i)
-        
-        # 2. Dash / V2 Specific Data
-        # PosX/Y/Z(3f), Speed(f), Power(f), Torque(f), TireTemp(4f)
-        # Boost(f), Fuel(f), Dist(f), BestLap(f), LastLap(f), CurLap(f), CurRaceTime(f)
-        # LapNum(H), RacePos(B), Accel(B), Brake(B), Clutch(B), HandBrake(B), Gear(B), Steer(b)
-        # Line(b), AIBrake(b)
-        # TireWear(4f) - NOTE: Parsing varies here slightly by game version, 
-        # usually there is padding. We will unpack strictly based on prompt list.
-        # TrackOrdinal(i)
-
-        fmt = "<iIffffffffffffffffffffffffffffffffffffffffffffffffffffiiiiifffffffffffffffffffffHBBBBBBbbbfiii"
-        
-        # Note: The format string above is an approximation. 
-        # To be robust, we unpack chunks to handle potential padding differences in specific games.
-        
         # --- PARSING ---
-        # Sled Portion
+        # Sled Portion (First 232 bytes)
         self.is_race_on = struct.unpack("<i", data[0:4])[0]
         self.timestamp_ms = struct.unpack("<I", data[4:8])[0]
         
@@ -80,7 +54,7 @@ class TelemetryData:
         (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = \
             struct.unpack("<5i", data[212:232])
             
-        # Dash Portion
+        # Dash Portion (Specific to V2)
         self.position = struct.unpack("<3f", data[232:244])
         self.speed = struct.unpack("<f", data[244:248])[0] # m/s
         self.power = struct.unpack("<f", data[248:252])[0] # Watts
@@ -102,6 +76,9 @@ class TelemetryData:
         self.ai_brake_diff = struct.unpack("<b", data[310:311])[0]
 
 class Commentator:
+    """
+    Analyzes telemetry data to generate commentary strings.
+    """
     def __init__(self):
         self.last_comment_time = 0
         self.last_gear = 0
@@ -115,12 +92,12 @@ class Commentator:
         """
         current_time = time.time()
         
-        # Don't spam comments faster than every 0.5 seconds unless critical
+        # Don't spam comments faster than every 0.2 seconds
         if current_time - self.last_comment_time < 0.2:
             return None
 
         msgs = []
-        priority = False # If true, print immediately
+        priority = False # If true, indicates an event we really want to print immediately
 
         # 1. Race State
         if packet.is_race_on and not self.was_race_on:
