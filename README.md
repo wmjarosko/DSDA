@@ -1,68 +1,101 @@
-# Forza Telemetry Commentator
+Forza Telemetry Commentator & Live Dashboard
 
-A Python script that listens to UDP telemetry data from **Forza Motorsport** and **Forza Horizon** games and generates real-time commentary on your driving.
+This Python tool listens to the UDP telemetry stream from Forza Motorsport and Forza Horizon games. It interprets the raw physics data to provide a live "race commentary" in your console, hosts a real-time web dashboard, and automatically logs race data to CSV files for analysis.
 
-## Features
+Features
 
--   **Real-time Analysis**: Parses high-frequency UDP telemetry packets.
--   **Event Commentary**: Detects and comments on:
-    -   Race Start/Stop events
-    -   Gear shifts
-    -   Redlining (High RPM)
-    -   Hard braking and Handbrake usage
-    -   Loss of traction (Burnouts/Drifting)
-    -   Environmental interactions (Puddles, Rumble strips)
-    -   Airborne moments (Jumps)
+🎙️ Live Commentary: Analyzes game events in real-time and prints commentary to the console (e.g., "Hard Braking!", "Suspension Bottomed Out!", "Overtake!").
 
-## Prerequisites
+🏎️ Web Dashboard: Hosts a local web server displaying:
 
--   Python 3.x
--   A compatible Forza game (Forza Motorsport 7, Forza Horizon 4/5, Forza Motorsport (2023)) running on Xbox or PC.
+Speed (MPH) & RPM
 
-## Configuration
+Current Gear & Position
 
-### Game Settings
+Lap Count & Fastest Lap
 
-1.  Open your Forza game.
-2.  Navigate to **Settings** -> **HUD & Gameplay**.
-3.  Scroll down to **Data Out**.
-4.  Set **Data Out** to **ON**.
-5.  Set **Data Out IP Address** to the IP address of the computer running this script.
-    -   If running on the same PC as the game, you can try `127.0.0.1` (localhost).
-    -   If running on a separate device (e.g., laptop listening to Xbox), use your computer's local network IP (e.g., `192.168.1.x`).
-6.  Set **Data Out IP Port** to `5300` (matches the default in the script).
-7.  Set **Data Out Packet Format** to **"Dash"** (or "Car Dash"). The script is designed for the Dash format (V2).
+Tire Health: Visual 2x2 grid showing tire wear percentage and temperature for all four tires.
 
-### Script Settings
+📝 Auto-Logging: Automatically starts recording telemetry to a CSV file when the race begins and stops when the race ends.
 
-You can modify the `UDP_IP` and `UDP_PORT` variables at the top of `main.py` if you need to use a different configuration.
+Suspension Monitoring: Detects and alerts if the suspension bottoms out ("CRUNCH!").
 
-```python
-UDP_IP = "0.0.0.0" # Listen on all available interfaces
-UDP_PORT = 5300    # Default Forza Data Out port
-```
+Prerequisites
 
-## Usage
+Python 3.x installed on your computer.
 
-1.  Clone this repository or download `main.py`.
-2.  Open a terminal or command prompt.
-3.  Run the script:
+A compatible Forza game (Forza Motorsport 7, Forza Horizon 4, Forza Horizon 5, or the new Forza Motorsport).
 
-    ```bash
-    python main.py
-    ```
+Setup Guide
 
-4.  Start driving in the game. You should see commentary messages appear in the console as you drive.
+1. Configure the Game
 
-## Troubleshooting
+You must enable "Data Out" in the game settings to broadcast telemetry.
 
--   **No Output**:
-    -   Verify the IP address and Port match exactly in both the game and the script.
-    -   Check your firewall settings to ensure Python is allowed to receive UDP packets on port 5300.
-    -   Ensure the game is not paused. Telemetry stops when paused.
--   **"Sled" vs "Dash"**:
-    -   This script requires the **"Dash"** packet format. If you selected "Sled" in the game settings, the script will ignore the packets (as they are smaller and lack required data).
+Open your Forza game.
 
-## License
+Navigate to Settings -> HUD & Gameplay.
 
-MIT License
+Scroll down to the Data Out section.
+
+Set Data Out to ON.
+
+Set Data Out IP Address to 127.0.0.1 (localhost).
+
+Set Data Out IP Port to 5300.
+
+2. Run the Script
+
+Download or clone this repository.
+
+Open your terminal or command prompt in the folder containing the script.
+
+Run the script:
+
+python race_commentator.py
+
+
+Usage
+
+Once the script is running, it will listen for data on port 5300.
+
+The Console
+
+Watch the terminal window for text commentary. The script filters out noise and only reports significant events like shifting, traction loss, jumps, and position changes.
+
+The Web Dashboard
+
+Open your web browser (on your PC, phone, or tablet connected to the same network) and navigate to:
+
+http://localhost:8000/dashboard.html
+
+Note: If accessing from a phone/tablet, replace localhost with your PC's local IP address (e.g., http://192.168.1.50:8000/dashboard.html).
+
+Data Logging
+
+When the race starts (Green Light), a file named race_log_YYYYMMDD-HHMMSS.csv is created.
+
+Data is written row-by-row during the race.
+
+When the race ends or you enter the pause menu, the file is saved and closed automatically.
+
+Configuration
+
+You can modify the configuration variables at the top of race_commentator.py if you need to use different ports or listen on specific network interfaces.
+
+UDP_IP = "0.0.0.0"  # Listen on all interfaces
+UDP_PORT = 5300     # Match this to your game settings
+WEB_PORT = 8000     # Port for the web dashboard
+
+
+Troubleshooting
+
+"Waiting for data...": Ensure the game is unpaused and you are driving. Ensure the Port in the script matches the Port in the game settings.
+
+Firewall: If you cannot connect to the dashboard from a phone, ensure your PC's firewall allows Python to accept incoming connections on port 8000.
+
+Wrong Gear/RPM: The script assumes the standard "Dash" (V2) format. Ensure your game is sending the correct format (sometimes labeled as "Car Dash").
+
+License
+
+Free to use and modify for personal projects.
