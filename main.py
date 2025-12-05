@@ -338,25 +338,10 @@ DASHBOARD_HTML = """
 class TelemetryData:
     def __init__(self, data):
         self.valid = False
-<<<<<<< HEAD
         if len(data) < 311: return
         self.valid = True
         
         # Unpack Data
-=======
-        
-        # The V2 'Dash' packet is typically 324 bytes. 
-        # The parser logic specifically checks for the Dash format size requirement (>= 311 bytes).
-        # Sled / V1 packets (232 bytes) are ignored by this parser as they lack the 'Dash' specific fields.
-        if len(data) < 311: 
-            return
-
-        self.valid = True
-        
-
-        # --- PARSING ---
-        # Sled Portion (First 232 bytes)
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
         self.is_race_on = struct.unpack("<i", data[0:4])[0]
         self.timestamp_ms = struct.unpack("<I", data[4:8])[0]
         (self.max_rpm, self.idle_rpm, self.cur_rpm) = struct.unpack("<3f", data[8:20])
@@ -373,16 +358,7 @@ class TelemetryData:
         self.slip_angle = struct.unpack("<4f", data[164:180])
         self.combined_slip = struct.unpack("<4f", data[180:196])
         self.susp_travel_meters = struct.unpack("<4f", data[196:212])
-<<<<<<< HEAD
         (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = struct.unpack("<5i", data[212:232])
-=======
-        
-        # Car Info
-        (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = \
-            struct.unpack("<5i", data[212:232])
-            
-        # Dash Portion (Specific to V2)
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
         self.position = struct.unpack("<3f", data[232:244])
         self.speed = struct.unpack("<f", data[244:248])[0]
         self.power = struct.unpack("<f", data[248:252])[0]
@@ -395,19 +371,12 @@ class TelemetryData:
         self.input_steer = struct.unpack("<b", data[308:309])[0]
         self.driving_line = struct.unpack("<b", data[309:310])[0]
         self.ai_brake_diff = struct.unpack("<b", data[310:311])[0]
-<<<<<<< HEAD
         self.tire_wear = struct.unpack("<4f", data[311:327])
         self.track_ordinal = struct.unpack("<i", data[327:331])[0]
 
     def to_dict(self):
         """Converts all attributes to a dictionary for CSV logging"""
         return vars(self).copy()
-=======
-        
-        # Tail
-        self.tire_wear = struct.unpack("<4f", data[311:327])
-        self.track_ordinal = struct.unpack("<i", data[327:331])[0]
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
 
 class Commentator:
     """
@@ -415,40 +384,22 @@ class Commentator:
     """
     def __init__(self):
         self.last_comment_time = 0
-<<<<<<< HEAD
         self.last_gear = 11 
-=======
-        self.last_gear = 11 # Start assuming neutral/unknown
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
         self.was_race_on = 0
         self.max_speed_hit = 0.0
         self.last_race_pos = 0
 
     def get_gear_display(self, gear_val):
         if gear_val == 0: return "R"
-<<<<<<< HEAD
         if gear_val == 11: return "N" 
-=======
-        if gear_val == 11: return "N" # Treating 11 as Neutral based on user logs
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
         return str(gear_val)
 
     def get_commentary(self, packet):
         current_time = time.time()
-<<<<<<< HEAD
         if current_time - self.last_comment_time < 0.2: return None
 
         msgs = []
         priority = False 
-=======
-        
-        # Don't spam comments faster than every 0.2 seconds
-        if current_time - self.last_comment_time < 0.2:
-            return None
-
-        msgs = []
-        priority = False # If true, indicates an event we really want to print immediately
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
 
         # Race State
         if packet.is_race_on and not self.was_race_on:
@@ -475,26 +426,12 @@ class Commentator:
         if packet.max_rpm > 0: rpm_percent = packet.cur_rpm / packet.max_rpm
         if rpm_percent > 0.95: msgs.append(f"🔴 REDLINING! Engine screaming at {int(packet.cur_rpm)} RPM!")
         
-<<<<<<< HEAD
         # Gears
         if packet.input_gear != self.last_gear:
-=======
-        # 4. Gears
-        # Logic: We only announce shifting to actual drive gears or reverse.
-        # We ignore shifting 'to' 11 (Neutral) to prevent spam during the shift action.
-        if packet.input_gear != self.last_gear:
-            # Check if this is a "real" gear engagement we want to announce
-            # We skip 11 (Neutral) for commentary
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
             if packet.input_gear != 11:
                 display_gear = self.get_gear_display(packet.input_gear)
                 msgs.append(f"⚙️ Shifted to Gear {display_gear}")
                 priority = True
-<<<<<<< HEAD
-=======
-            
-            # We still update last_gear so we know when we leave Neutral later
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
             self.last_gear = packet.input_gear
 
         # Events
@@ -502,8 +439,18 @@ class Commentator:
         if packet.input_brake > 200: msgs.append("🛑 HARD BRAKING!")
         
         max_slip = max([abs(x) for x in packet.tire_slip_ratio])
-        if max_slip > 1.2: msgs.append("💨 BURNOUT / DRIFT! Massive loss of traction!"); priority = True
-        elif max_slip > 0.8: msgs.append("⚠️ Tires struggling for grip...")
+
+        # Combined Slip (Lateral + Longitudinal)
+        # 1.0 is the theoretical limit of grip circle
+        max_combined_slip = max([abs(x) for x in packet.combined_slip])
+
+        if max_slip > 1.2:
+            msgs.append("💨 BURNOUT / DRIFT! Massive loss of traction!")
+            priority = True
+        elif max_combined_slip > 0.9 and max_combined_slip < 1.1:
+             msgs.append("🤏 AT THE LIMIT! Edge of grip circle.")
+        elif max_slip > 0.8:
+            msgs.append("⚠️ Tires struggling for grip...")
 
         max_puddle = max(packet.puddle_depth)
         if max_puddle > 0.5: msgs.append("💦 SPLASH! Hit a deep puddle!"); priority = True
@@ -518,7 +465,6 @@ class Commentator:
             return " | ".join(msgs)
         return None
 
-<<<<<<< HEAD
 # --- WEB SERVER HANDLER ---
 class TelemetryRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -539,14 +485,6 @@ class TelemetryRequestHandler(BaseHTTPRequestHandler):
         
         else:
             self.send_error(404, "File not found")
-=======
-    def get_dashboard_str(self, packet):
-        """Returns a string for a constant dashboard update"""
-        mph = packet.speed * 2.23694
-        gear_str = self.get_gear_display(packet.input_gear)
-        return (f"POS: {packet.race_pos} | LAP: {packet.lap_number} | "
-                f"GEAR: {gear_str} | MPH: {mph:.1f} | RPM: {int(packet.cur_rpm)}")
->>>>>>> 197f56b5d4ce9368978b783c82be3f27a9a6fe7a
 
     def log_message(self, format, *args):
         return
