@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Telemetry Dashboard</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            width: 90%;
+            max-width: 1000px;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+        }
+
+        .label {
+            color: #888;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        /* Specific Highlight Styles */
+        #gear-val { color: #00e5ff; font-size: 4rem; }
+        #speed-val { color: #ffea00; }
+        #rpm-bar-container {
+            grid-column: 1 / -1;
+            background: #333;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+        }
+        #rpm-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4caf50, #ffeb3b, #f44336);
+            transition: width 0.1s linear;
+        }
+        .status-off { color: #555; }
+        .status-on { color: #00e676; }
+
+    </style>
+</head>
+<body>
+
+    <div style="margin-bottom: 20px;">
+        <span id="status-icon" class="status-off">●</span> 
+        <span id="status-text">WAITING FOR DATA...</span>
+    </div>
+
+    <div class="container">
+        <!-- Gear -->
+        <div class="card" style="grid-row: span 2; display: flex; flex-direction: column; justify-content: center;">
+            <div class="label">Gear</div>
+            <div class="value" id="gear-val">-</div>
+        </div>
+
+        <!-- Speed -->
+        <div class="card">
+            <div class="label">Speed (MPH)</div>
+            <div class="value" id="speed-val">0</div>
+        </div>
+
+        <!-- RPM Text -->
+        <div class="card">
+            <div class="label">RPM</div>
+            <div class="value" id="rpm-val">0</div>
+        </div>
+
+        <!-- Position -->
+        <div class="card">
+            <div class="label">Position</div>
+            <div class="value" id="pos-val">-</div>
+        </div>
+
+        <!-- Lap -->
+        <div class="card">
+            <div class="label">Lap</div>
+            <div class="value" id="lap-val">-</div>
+        </div>
+
+        <!-- RPM Bar -->
+        <div id="rpm-bar-container">
+            <div id="rpm-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        // Update function
+        async function fetchData() {
+            try {
+                const response = await fetch('/data');
+                const data = await response.json();
+
+                if (data.race_on) {
+                    document.getElementById('status-icon').className = 'status-on';
+                    document.getElementById('status-text').innerText = "RACE ACTIVE";
+                } else {
+                    document.getElementById('status-icon').className = 'status-off';
+                    document.getElementById('status-text').innerText = "PAUSED / MENU";
+                }
+
+                document.getElementById('gear-val').innerText = data.gear;
+                document.getElementById('speed-val').innerText = data.speed;
+                document.getElementById('rpm-val').innerText = data.rpm;
+                document.getElementById('pos-val').innerText = data.position;
+                document.getElementById('lap-val').innerText = data.lap;
+
+                // Calculate RPM percentage for bar
+                let maxRpm = data.max_rpm || 8000; 
+                let pct = (data.rpm / maxRpm) * 100;
+                document.getElementById('rpm-bar').style.width = pct + '%';
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('status-text').innerText = "CONNECTION LOST";
+            }
+        }
+
+        // Poll every 100ms (10 times a second)
+        setInterval(fetchData, 100);
+    </script>
+</body>
+</html>
