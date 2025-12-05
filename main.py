@@ -163,9 +163,16 @@ class Commentator:
         # 5. Traction & Slip (Index 2 is Rear Left, 3 is Rear Right usually)
         # Slip Ratio > 1.0 means loss of traction
         max_slip = max([abs(x) for x in packet.tire_slip_ratio])
+
+        # Combined Slip (Lateral + Longitudinal)
+        # 1.0 is the theoretical limit of grip circle
+        max_combined_slip = max([abs(x) for x in packet.combined_slip])
+
         if max_slip > 1.2:
             msgs.append("💨 BURNOUT / DRIFT! Massive loss of traction!")
             priority = True
+        elif max_combined_slip > 0.9 and max_combined_slip < 1.1:
+             msgs.append("🤏 AT THE LIMIT! Edge of grip circle.")
         elif max_slip > 0.8:
             msgs.append("⚠️ Tires struggling for grip...")
 
