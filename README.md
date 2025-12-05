@@ -52,7 +52,7 @@ Open your terminal or command prompt in the folder containing the script.
 
 Run the script:
 
-python race_commentator.py
+python main.py
 
 
 Usage
@@ -81,7 +81,7 @@ When the race ends or you enter the pause menu, the file is saved and closed aut
 
 Configuration
 
-You can modify the configuration variables at the top of race_commentator.py if you need to use different ports or listen on specific network interfaces.
+You can modify the configuration variables at the top of main.py if you need to use different ports or listen on specific network interfaces.
 
 UDP_IP = "0.0.0.0"  # Listen on all interfaces
 UDP_PORT = 5300     # Match this to your game settings
