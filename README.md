@@ -1,81 +1,117 @@
 # Forza Telemetry Commentator
 
-A Python script that listens to UDP telemetry data from **Forza Motorsport** and **Forza Horizon** games and generates real-time commentary on your driving.
+Forza Telemetry Toolkit
 
----
+This Python tool listens to the UDP telemetry stream from Forza Motorsport and Forza Horizon games. It offers two distinct ways to view your race data: a comprehensive Web Dashboard with data logging, or a lightweight Transparent Overlay that sits directly on top of your game window.
 
-## **Features**
+Features
 
--   **Real-time Analysis**: Parses high-frequency UDP telemetry packets.
--   **Event Commentary**: Detects and comments on:
-    -   Race Start/Stop events
-    -   Gear shifts
-    -   Redlining (High RPM)
-    -   Hard braking and Handbrake usage
-    -   Loss of traction (Burnouts/Drifting)
-    -   Limit of grip detection (Cornering at the limit)
-    -   Environmental interactions (Puddles, Rumble strips)
-    -   Airborne moments (Jumps)
+Mode 1: Web Dashboard & Logger
 
----
+🎙️ Live Commentary: Analyzes game events in real-time and prints text commentary to the console (e.g., "Hard Braking!", "Suspension Bottomed Out!", "Overtake!").
 
-## **Prerequisites**
+🏎️ Web Dashboard: Hosts a local web server displaying live telemetry on any device (phone, tablet, second monitor).
 
--   Python 3.x
--   A compatible Forza game (Forza Motorsport 7, Forza Horizon 4/5, Forza Motorsport (2023)) running on Xbox or PC.
+Tire Health: Visual 2x2 grid showing vertical tire wear bars and live temperatures.
 
----
+Suspension Alerts: Visual and text alerts for bottoming out.
 
-## **Configuration**
+📝 Auto-Logging: Automatically records full telemetry to CSV files. Recording starts on "Green Light" and stops when the race ends.
 
-### **Game Settings**
+Mode 2: Transparent Windows Overlay
 
-1.  Open your Forza game.
-2.  Navigate to **Settings** -> **HUD & Gameplay**.
-3.  Scroll down to **Data Out**.
-4.  Set **Data Out** to **ON**.
-5.  Set **Data Out IP Address** to the IP address of the computer running this script.
-    -   If running on the same PC as the game, you can try `127.0.0.1` (localhost).
-    -   If running on a separate device (e.g., laptop listening to Xbox), use your computer's local network IP (e.g., `192.168.1.x`).
-6.  Set **Data Out IP Port** to `5300` (matches the default in the script).
-7.  Set **Data Out Packet Format** to **"Dash"** (or "Car Dash"). The script is designed for the Dash format (V2).
+🖥️ Native Overlay: Draws a HUD directly over your game window on PC.
 
-### **Script Settings**
+🖱️ Click-Through: The overlay is "transparent" to mouse clicks, so you can interact with the game underneath without the overlay stealing focus.
 
-You can modify the `UDP_IP` and `UDP_PORT` variables at the top of `main.py` if you need to use a different configuration.
+Always On Top: Stays visible even when playing in Windowed or Borderless Windowed modes.
 
-```python
-UDP_IP = "0.0.0.0" # Listen on all available interfaces
-UDP_PORT = 5300    # Default Forza Data Out port
-```
+Smart Positioning: Automatically aligns itself to the right side of your screen.
 
----
+Live Gauges: Large Gear indicator, Speed, RPM, Position, Lap, and Tire Wear bars.
 
-## **Usage**
+Prerequisites
 
-1.  Clone this repository or download `main.py`.
-2.  Open a terminal or command prompt.
-3.  Run the script:
+Python 3.x installed on your computer.
 
-    ```bash
-    python main.py
-    ```
+Forza Game: Compatible with Forza Motorsport 7, Forza Horizon 4, Forza Horizon 5, and the new Forza Motorsport (2023).
 
-4.  Start driving in the game. You should see commentary messages appear in the console as you drive.
+OS: Windows is required for Mode 2 (Overlay). Mode 1 (Web) works on Mac/Linux as well.
 
----
+Setup Guide
 
-## **Troubleshooting**
+1. Configure the Game
 
--   **No Output**:
-    -   Verify the IP address and Port match exactly in both the game and the script.
-    -   Check your firewall settings to ensure Python is allowed to receive UDP packets on port 5300.
-    -   Ensure the game is not paused. Telemetry stops when paused.
--   **"Sled" vs "Dash"**:
-    -   This script requires the **"Dash"** packet format. If you selected "Sled" in the game settings, the script will ignore the packets (as they are smaller and lack required data).
+You must enable "Data Out" in the game settings to broadcast telemetry.
 
----
+Open your Forza game.
 
-## **License**
+Navigate to Settings -> HUD & Gameplay.
 
-MIT License
+Scroll down to the Data Out section.
+
+Set Data Out to ON.
+
+Set Data Out IP Address to 127.0.0.1 (localhost).
+
+Set Data Out IP Port to 5300.
+
+2. Run the Toolkit
+
+Open your terminal or command prompt in the folder containing the script.
+
+Run the master script:
+
+python forza_master.py
+
+
+The script will ask you to select a mode:
+
+=========================================
+  FORZA TELEMETRY TOOLKIT
+=========================================
+1. Web Dashboard + CSV Logger + Commentary
+2. Transparent Windows Overlay
+=========================================
+Select Mode (1 or 2):
+
+
+Usage Tips
+
+For the Overlay (Mode 2)
+
+Game Window Mode: For best results, set your Forza video settings to Windowed or Borderless Windowed. Exclusive Fullscreen may hide the overlay.
+
+Position: The overlay automatically calculates your screen width and places itself on the right side.
+
+Closing: To close the overlay, click into the terminal window running the script and press Ctrl+C. You cannot close it by clicking the overlay itself (because clicks pass through it!).
+
+For the Web Dashboard (Mode 1)
+
+Access: Open your web browser and go to http://localhost:8000/dashboard.html.
+
+Mobile Access: Find your PC's local IP address (e.g., 192.168.1.50) and visit http://192.168.1.50:8000/dashboard.html on your phone to turn it into a dedicated race dash.
+
+Logs: Check the script folder for race_log_YYYYMMDD-HHMMSS.csv files after your race finishes.
+
+Configuration
+
+You can modify the configuration variables at the top of forza_master.py if you need to change ports or overlay padding:
+
+UDP_IP = "0.0.0.0" 
+UDP_PORT = 5300     # Must match game settings
+WEB_PORT = 8000     # Dashboard port
+OVERLAY_Y = 50      # Distance from top of screen
+
+
+Troubleshooting
+
+"Waiting for data...": Ensure the game is unpaused and you are driving. Ensure the Port in the script matches the Port in the game settings.
+
+Overlay not showing: Ensure the game is not in "Exclusive Fullscreen" mode. Ensure you are running on Windows.
+
+Click-through not working: This feature relies on Windows APIs. If it fails, check the console for error messages regarding ctypes.
+
+License
+
+Free to use and modify for personal projects.
