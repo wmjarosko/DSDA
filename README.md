@@ -1,10 +1,10 @@
 # Forza Telemetry Commentator
 
-Forza Telemetry Toolkit
+##Forza Telemetry Toolkit
 
 This Python tool listens to the UDP telemetry stream from Forza Motorsport and Forza Horizon games. It offers two distinct ways to view your race data: a comprehensive Web Dashboard with data logging, or a lightweight Transparent Overlay that sits directly on top of your game window.
 
-Features
+##Features
 
 Mode 1: Web Dashboard & Logger
 
@@ -30,7 +30,7 @@ Smart Positioning: Automatically aligns itself to the right side of your screen.
 
 Live Gauges: Large Gear indicator, Speed, RPM, Position, Lap, and Tire Wear bars.
 
-Prerequisites
+##Prerequisites
 
 Python 3.x installed on your computer.
 
@@ -38,7 +38,7 @@ Forza Game: Compatible with Forza Motorsport 7, Forza Horizon 4, Forza Horizon 5
 
 OS: Windows is required for Mode 2 (Overlay). Mode 1 (Web) works on Mac/Linux as well.
 
-Setup Guide
+##Setup Guide
 
 1. Configure the Game
 
@@ -76,7 +76,7 @@ The script will ask you to select a mode:
 Select Mode (1 or 2):
 
 
-Usage Tips
+##Usage Tips
 
 For the Overlay (Mode 2)
 
