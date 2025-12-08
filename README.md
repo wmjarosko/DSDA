@@ -62,7 +62,7 @@ Open your terminal or command prompt in the folder containing the script.
 
 Run the master script:
 
-python forza_master.py
+python main.py
 
 
 The script will ask you to select a mode:
