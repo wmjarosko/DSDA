@@ -52,7 +52,7 @@ Scroll down to the Data Out section.
 
 Set Data Out to ON.
 
-Set Data Out IP Address to 127.0.0.1 (localhost).
+Set Data Out IP Address to the IP address of the machine that the script will run on, 127.0.0.1 if you want to use the overlay on top of Forza.
 
 Set Data Out IP Port to 5300.
 
@@ -98,7 +98,7 @@ Logs: Check the script folder for race_log_YYYYMMDD-HHMMSS.csv files after your 
 
 You can modify the configuration variables at the top of main.py if you need to change ports or overlay padding:
 
-UDP_IP = "0.0.0.0" 
+UDP_IP = "0.0.0.0"  
 UDP_PORT = 5300     # Must match game settings
 WEB_PORT = 8000     # Dashboard port
 OVERLAY_Y = 50      # Distance from top of screen
