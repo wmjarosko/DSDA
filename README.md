@@ -96,7 +96,7 @@ Logs: Check the script folder for race_log_YYYYMMDD-HHMMSS.csv files after your 
 
 Configuration
 
-You can modify the configuration variables at the top of forza_master.py if you need to change ports or overlay padding:
+You can modify the configuration variables at the top of main.py if you need to change ports or overlay padding:
 
 UDP_IP = "0.0.0.0" 
 UDP_PORT = 5300     # Must match game settings
