@@ -5,7 +5,6 @@ import os
 import threading
 import json
 import csv
-import sys
 
 # Try imports for Overlay (Tkinter/Windows API)
 try:
