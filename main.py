@@ -198,7 +198,7 @@ class Commentator:
 
         if packet.input_handbrake > 0: msgs.append("⚓ Handbrake pulled!")
         if packet.input_brake > 200: msgs.append("🛑 HARD BRAKING!")
-        max_slip = max([abs(x) for x in packet.tire_slip_ratio])
+        max_slip = max(abs(x) for x in packet.tire_slip_ratio)
         if max_slip > 1.2: msgs.append("💨 BURNOUT / DRIFT! Massive loss of traction!"); priority = True
         elif max_slip > 0.8: msgs.append("⚠️ Tires struggling for grip...")
         max_puddle = max(packet.puddle_depth)
