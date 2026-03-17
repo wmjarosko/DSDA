@@ -215,7 +215,7 @@ class Commentator:
 class TelemetryRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/data':
-            self.send_response(200); self.send_header('Content-type', 'application/json'); self.send_header('Access-Control-Allow-Origin', '*'); self.end_headers()
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
             self.wfile.write(json.dumps(current_telemetry).encode())
         elif self.path == '/' or self.path == '/dashboard.html':
             self.send_response(200); self.send_header('Content-type', 'text/html'); self.end_headers()

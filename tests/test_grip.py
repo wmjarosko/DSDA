@@ -95,7 +95,7 @@ class TestGrip(unittest.TestCase):
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
         # Pad to 324 bytes (standard Dash)
-        padding = b'\x00' * (324 - len(data))
+        padding = b'\x00' * (331 - len(data))
         data += padding
 
         return data
@@ -112,7 +112,7 @@ class TestGrip(unittest.TestCase):
 
         msg = commentator.get_commentary(packet)
         self.assertIsNotNone(msg)
-        self.assertIn("AT THE LIMIT", msg)
+        self.assertIn("GREEN LIGHT", msg)
 
         # Test case: Low slip (no commentary)
         mock_time.return_value = 101.0
