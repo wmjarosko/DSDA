@@ -10,7 +10,6 @@ import sys
 # Try imports for Overlay (Tkinter/Windows API)
 try:
     import tkinter as tk
-    from tkinter import ttk
     import ctypes
     TKINTER_AVAILABLE = True
 except ImportError:
