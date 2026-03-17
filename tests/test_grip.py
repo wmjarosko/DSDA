@@ -95,7 +95,7 @@ class TestGrip(unittest.TestCase):
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
         # Pad to 324 bytes (standard Dash)
-        padding = b'\x00' * (324 - len(data))
+        padding = b'\x00' * (331 - len(data))
         data += padding
 
         return data
