@@ -25,45 +25,57 @@ WEB_PORT = 8000
 # OVERLAY_X is now calculated dynamically in the class to be on the right
 OVERLAY_Y = 50 
 
+
+# Precompiled struct format for Dash V2 telemetry data (331 bytes)
+TELEMETRY_FORMAT = "<i I 3f 3f 3f 3f 3f 4f 4f 4f 4i 4f 4f 4f 4f 4f 5i 3f f f f 4f 7f H B 5B b b b 4f i"
+TELEMETRY_STRUCT = struct.Struct(TELEMETRY_FORMAT)
+
 # --- SHARED TELEMETRY PARSER ---
+
 class TelemetryData:
     def __init__(self, data):
         self.valid = False
         if len(data) < 311: return
         self.valid = True
         
+        # Pad data to ensure it's at least 331 bytes for the struct unpack
+        if len(data) < 331:
+            data = data.ljust(331, b'\x00')
+
         # Unpack Data (Standard Dash V2 Format)
-        self.is_race_on = struct.unpack("<i", data[0:4])[0]
-        self.timestamp_ms = struct.unpack("<I", data[4:8])[0]
-        (self.max_rpm, self.idle_rpm, self.cur_rpm) = struct.unpack("<3f", data[8:20])
-        self.accel = struct.unpack("<3f", data[20:32])
-        self.velocity = struct.unpack("<3f", data[32:44])
-        self.angular_vel = struct.unpack("<3f", data[44:56])
-        self.orientation = struct.unpack("<3f", data[56:68])
-        self.norm_suspension = struct.unpack("<4f", data[68:84])
-        self.tire_slip_ratio = struct.unpack("<4f", data[84:100])
-        self.wheel_rotation = struct.unpack("<4f", data[100:116])
-        self.rumble_strip = struct.unpack("<4i", data[116:132])
-        self.puddle_depth = struct.unpack("<4f", data[132:148])
-        self.surface_rumble = struct.unpack("<4f", data[148:164])
-        self.slip_angle = struct.unpack("<4f", data[164:180])
-        self.combined_slip = struct.unpack("<4f", data[180:196])
-        self.susp_travel_meters = struct.unpack("<4f", data[196:212])
-        (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = struct.unpack("<5i", data[212:232])
-        self.position = struct.unpack("<3f", data[232:244])
-        self.speed = struct.unpack("<f", data[244:248])[0]
-        self.power = struct.unpack("<f", data[248:252])[0]
-        self.torque = struct.unpack("<f", data[252:256])[0]
-        self.tire_temp = struct.unpack("<4f", data[256:272])
-        (self.boost, self.fuel, self.dist, self.best_lap, self.last_lap, self.cur_lap, self.cur_race_time) = struct.unpack("<7f", data[272:300])
-        self.lap_number = struct.unpack("<H", data[300:302])[0]
-        self.race_pos = struct.unpack("<B", data[302:303])[0]
-        (self.input_accel, self.input_brake, self.input_clutch, self.input_handbrake, self.input_gear) = struct.unpack("<5B", data[303:308])
-        self.input_steer = struct.unpack("<b", data[308:309])[0]
-        self.driving_line = struct.unpack("<b", data[309:310])[0]
-        self.ai_brake_diff = struct.unpack("<b", data[310:311])[0]
-        self.tire_wear = struct.unpack("<4f", data[311:327])
-        self.track_ordinal = struct.unpack("<i", data[327:331])[0]
+        unpacked = TELEMETRY_STRUCT.unpack(data[:331])
+
+        self.is_race_on = unpacked[0]
+        self.timestamp_ms = unpacked[1]
+        (self.max_rpm, self.idle_rpm, self.cur_rpm) = unpacked[2:5]
+        self.accel = unpacked[5:8]
+        self.velocity = unpacked[8:11]
+        self.angular_vel = unpacked[11:14]
+        self.orientation = unpacked[14:17]
+        self.norm_suspension = unpacked[17:21]
+        self.tire_slip_ratio = unpacked[21:25]
+        self.wheel_rotation = unpacked[25:29]
+        self.rumble_strip = unpacked[29:33]
+        self.puddle_depth = unpacked[33:37]
+        self.surface_rumble = unpacked[37:41]
+        self.slip_angle = unpacked[41:45]
+        self.combined_slip = unpacked[45:49]
+        self.susp_travel_meters = unpacked[49:53]
+        (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = unpacked[53:58]
+        self.position = unpacked[58:61]
+        self.speed = unpacked[61]
+        self.power = unpacked[62]
+        self.torque = unpacked[63]
+        self.tire_temp = unpacked[64:68]
+        (self.boost, self.fuel, self.dist, self.best_lap, self.last_lap, self.cur_lap, self.cur_race_time) = unpacked[68:75]
+        self.lap_number = unpacked[75]
+        self.race_pos = unpacked[76]
+        (self.input_accel, self.input_brake, self.input_clutch, self.input_handbrake, self.input_gear) = unpacked[77:82]
+        self.input_steer = unpacked[82]
+        self.driving_line = unpacked[83]
+        self.ai_brake_diff = unpacked[84]
+        self.tire_wear = unpacked[85:89]
+        self.track_ordinal = unpacked[89]
 
     def to_dict(self):
         return vars(self).copy()
@@ -206,6 +218,9 @@ class Commentator:
         if any(x > 0.98 for x in packet.norm_suspension): msgs.append("💥 CRUNCH! Suspension bottomed out!"); priority = True
         mph = packet.speed * 2.23694
         if all(x < 0.1 for x in packet.norm_suspension) and mph > 20: msgs.append("🚀 AIRBORNE! All four wheels off the ground!"); priority = True
+
+        max_combined_slip = max([abs(x) for x in packet.combined_slip])
+        if max_combined_slip > 0.9 and max_combined_slip < 1.1: msgs.append("AT THE LIMIT! Dancing on the edge of traction!")
 
         if msgs:
             self.last_comment_time = current_time
