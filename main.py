@@ -78,6 +78,7 @@ current_telemetry = {
     "tire_wear": [100.0, 100.0, 100.0, 100.0],
     "tire_temp": [0, 0, 0, 0]
 }
+cached_telemetry_json = json.dumps(current_telemetry).encode()
 
 DASHBOARD_HTML = """
 <!DOCTYPE html>
@@ -216,7 +217,7 @@ class TelemetryRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/data':
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.send_header('Access-Control-Allow-Origin', '*'); self.end_headers()
-            self.wfile.write(json.dumps(current_telemetry).encode())
+            self.wfile.write(cached_telemetry_json)
         elif self.path == '/' or self.path == '/dashboard.html':
             self.send_response(200); self.send_header('Content-type', 'text/html'); self.end_headers()
             self.wfile.write(DASHBOARD_HTML.encode('utf-8'))
@@ -266,6 +267,9 @@ def run_web_mode():
             current_telemetry["race_on"] = bool(packet.is_race_on)
             current_telemetry["tire_wear"] = tire_health
             current_telemetry["tire_temp"] = [int(t) for t in packet.tire_temp]
+
+            global cached_telemetry_json
+            cached_telemetry_json = json.dumps(current_telemetry).encode()
 
             # Logging
             if packet.is_race_on:
