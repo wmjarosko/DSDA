@@ -19,11 +19,11 @@ except ImportError:
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # --- CONFIGURATION ---
-UDP_IP = "0.0.0.0" 
+UDP_IP = "0.0.0.0"
 UDP_PORT = 5300
 WEB_PORT = 8000
 # OVERLAY_X is now calculated dynamically in the class to be on the right
-OVERLAY_Y = 50 
+OVERLAY_Y = 50
 
 # --- SHARED TELEMETRY PARSER ---
 class TelemetryData:
@@ -31,7 +31,7 @@ class TelemetryData:
         self.valid = False
         if len(data) < 311: return
         self.valid = True
-        
+
         # Unpack Data (Standard Dash V2 Format)
         self.is_race_on = struct.unpack("<i", data[0:4])[0]
         self.timestamp_ms = struct.unpack("<I", data[4:8])[0]
@@ -73,7 +73,7 @@ class TelemetryData:
 # ==========================================
 
 current_telemetry = {
-    "rpm": 0, "speed": 0, "gear": "N", "position": 0, 
+    "rpm": 0, "speed": 0, "gear": "N", "position": 0,
     "lap": 0, "best_lap": 0.0, "track_id": 0, "race_on": False,
     "tire_wear": [100.0, 100.0, 100.0, 100.0],
     "tire_temp": [0, 0, 0, 0]
@@ -93,7 +93,7 @@ DASHBOARD_HTML = """
         .value { font-size: 2.5rem; font-weight: bold; }
         #gear-val { color: #00e5ff; font-size: 4rem; }
         #speed-val { color: #ffea00; }
-        #best-lap-val { color: #00e676; } 
+        #best-lap-val { color: #00e676; }
         .tire-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; justify-items: center; }
         .tire-box { background: #2a2a2a; padding: 10px; border-radius: 5px; display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; }
         .tire-header { display: flex; justify-content: space-between; width: 100%; font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
@@ -137,7 +137,7 @@ DASHBOARD_HTML = """
         async function fetchData() {
             try {
                 const res = await fetch('/data'); const data = await res.json();
-                if (data.race_on) { document.getElementById('status-icon').className = 'status-on'; document.getElementById('status-text').innerText = "RACE ACTIVE"; } 
+                if (data.race_on) { document.getElementById('status-icon').className = 'status-on'; document.getElementById('status-text').innerText = "RACE ACTIVE"; }
                 else { document.getElementById('status-icon').className = 'status-off'; document.getElementById('status-text').innerText = "PAUSED / MENU"; }
                 document.getElementById('gear-val').innerText = data.gear; document.getElementById('speed-val').innerText = data.speed;
                 document.getElementById('rpm-val').innerText = data.rpm; document.getElementById('pos-val').innerText = data.position;
@@ -158,21 +158,21 @@ DASHBOARD_HTML = """
 class Commentator:
     def __init__(self):
         self.last_comment_time = 0
-        self.last_gear = 11 
+        self.last_gear = 11
         self.was_race_on = 0
         self.max_speed_hit = 0.0
         self.last_race_pos = 0
 
     def get_gear_display(self, gear_val):
         if gear_val == 0: return "R"
-        if gear_val == 11: return "N" 
+        if gear_val == 11: return "N"
         return str(gear_val)
 
     def get_commentary(self, packet):
         current_time = time.time()
         if current_time - self.last_comment_time < 0.2: return None
         msgs = []
-        priority = False 
+        priority = False
 
         if packet.is_race_on and not self.was_race_on: msgs.append("🟢 GREEN LIGHT! The race has started!"); priority = True
         elif not packet.is_race_on and self.was_race_on: msgs.append("⏸️ Race paused or in menus.")
@@ -188,7 +188,7 @@ class Commentator:
         rpm_percent = 0
         if packet.max_rpm > 0: rpm_percent = packet.cur_rpm / packet.max_rpm
         if rpm_percent > 0.95: msgs.append(f"🔴 REDLINING! Engine screaming at {int(packet.cur_rpm)} RPM!")
-        
+
         if packet.input_gear != self.last_gear:
             if packet.input_gear != 11:
                 display_gear = self.get_gear_display(packet.input_gear)
@@ -203,7 +203,6 @@ class Commentator:
         elif max_slip > 0.8: msgs.append("⚠️ Tires struggling for grip...")
         max_puddle = max(packet.puddle_depth)
         if max_puddle > 0.5: msgs.append("💦 SPLASH! Hit a deep puddle!"); priority = True
-        if any(0.9 < abs(x) < 1.1 for x in packet.combined_slip): msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
         if any(x > 0.98 for x in packet.norm_suspension): msgs.append("💥 CRUNCH! Suspension bottomed out!"); priority = True
         mph = packet.speed * 2.23694
         if all(x < 0.1 for x in packet.norm_suspension) and mph > 20: msgs.append("🚀 AIRBORNE! All four wheels off the ground!"); priority = True
@@ -237,7 +236,7 @@ def run_web_mode():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
     print(f"🎧 Listening for UDP telemetry on {UDP_IP}:{UDP_PORT}...")
-    
+
     commentator = Commentator()
     csv_file = None
     csv_writer = None
@@ -245,7 +244,7 @@ def run_web_mode():
 
     try:
         while True:
-            data, addr = sock.recvfrom(1024) 
+            data, addr = sock.recvfrom(1024)
             packet = TelemetryData(data)
             if not packet.valid: continue
 
@@ -306,15 +305,15 @@ if TKINTER_AVAILABLE:
         def __init__(self, root):
             self.root = root
             self.root.title("Forza Overlay")
-            
+
             # Dynamic positioning: Right side of screen
             screen_width = self.root.winfo_screenwidth()
             window_width = 300
             # Calculate position: Screen Width - Window Width - 50px Padding
-            x_pos = screen_width - window_width - 50 
-            
+            x_pos = screen_width - window_width - 50
+
             self.root.geometry(f"{window_width}x450+{x_pos}+{OVERLAY_Y}")
-            
+
             self.root.overrideredirect(True)
             self.root.wm_attributes("-topmost", True)
             self.bg_color = "#010101"
@@ -415,7 +414,7 @@ def run_overlay_mode():
         return
     if os.name != 'nt':
         print("Warning: Transparent Overlay mode relies on Windows APIs. It may crash or fail on Linux/Mac.")
-    
+
     print("Starting Overlay... Press Ctrl+C in this terminal to exit.")
     root = tk.Tk()
     app = OverlayApp(root)
@@ -435,9 +434,9 @@ if __name__ == "__main__":
     print("1. Web Dashboard + CSV Logger + Commentary")
     print("2. Transparent Windows Overlay")
     print("=========================================")
-    
+
     choice = input("Select Mode (1 or 2): ").strip()
-    
+
     if choice == "1":
         print("\nLaunching Web Mode...")
         run_web_mode()

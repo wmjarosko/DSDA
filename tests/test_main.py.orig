@@ -9,7 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import TelemetryData, Commentator
 
-class TestGrip(unittest.TestCase):
+class TestForzaTelemetry(unittest.TestCase):
+
     def create_mock_packet(self, overrides=None):
         defaults = {
             'is_race_on': 1,
@@ -94,34 +95,88 @@ class TestGrip(unittest.TestCase):
         data += struct.pack('<b', defaults['driving_line'])
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
-        # Pad to 331 bytes (standard Dash)
-        padding = b'\x00' * (331 - len(data))
+        # Pad to 324 bytes (standard Dash)
+        padding = b'\x00' * (324 - len(data))
         data += padding
 
         return data
 
+    def test_telemetry_data_parsing(self):
+        data = self.create_mock_packet()
+        packet = TelemetryData(data)
+
+        self.assertTrue(packet.valid)
+        self.assertEqual(packet.is_race_on, 1)
+        self.assertAlmostEqual(packet.max_rpm, 8000.0)
+        self.assertAlmostEqual(packet.cur_rpm, 4000.0)
+        self.assertEqual(packet.input_gear, 3)
+        self.assertEqual(packet.lap_number, 1)
+
+    def test_invalid_packet_length(self):
+        data = b'\x00' * 300 # Too short
+        packet = TelemetryData(data)
+        self.assertFalse(packet.valid)
+
     @patch('main.time.time')
-    def test_grip_commentary(self, mock_time):
+    def test_commentator_race_start(self, mock_time):
         mock_time.return_value = 100.0
         commentator = Commentator()
 
-        # Test case: Combined slip near 1.0 (limit)
-        # Using 0.95 which triggers > 0.9 check
-        data = self.create_mock_packet({'combined_slip': (0.95, 0.95, 0.95, 0.95)})
+        # Packet 1: Not racing
+        data1 = self.create_mock_packet({'is_race_on': 0})
+        packet1 = TelemetryData(data1)
+
+        commentator.get_commentary(packet1)
+
+        # Packet 2: Racing started
+        mock_time.return_value = 101.0 # Advance time to avoid rate limit
+        data2 = self.create_mock_packet({'is_race_on': 1})
+        packet2 = TelemetryData(data2)
+
+        msg = commentator.get_commentary(packet2)
+        self.assertIsNotNone(msg)
+        self.assertIn("GREEN LIGHT", msg)
+
+    @patch('main.time.time')
+    def test_commentator_redlining(self, mock_time):
+        mock_time.return_value = 100.0
+        commentator = Commentator()
+
+        # 96% RPM
+        data = self.create_mock_packet({'max_rpm': 8000.0, 'cur_rpm': 7700.0})
         packet = TelemetryData(data)
 
         msg = commentator.get_commentary(packet)
         self.assertIsNotNone(msg)
-        self.assertIn("AT THE LIMIT", msg)
+        self.assertIn("REDLINING", msg)
 
-        # Test case: Low slip (no commentary)
-        mock_time.return_value = 101.0
-        data2 = self.create_mock_packet({'combined_slip': (0.5, 0.5, 0.5, 0.5)})
-        packet2 = TelemetryData(data2)
+    @patch('main.time.time')
+    def test_commentator_gear_shift(self, mock_time):
+        mock_time.return_value = 100.0
+        commentator = Commentator()
 
-        msg2 = commentator.get_commentary(packet2)
-        # Assuming no other events trigger
-        self.assertIsNone(msg2)
+        # Start at gear 1
+        data1 = self.create_mock_packet({'input_gear': 1})
+        commentator.get_commentary(TelemetryData(data1))
+
+        # Shift to gear 2
+        mock_time.return_value = 101.0 # Advance time
+        data2 = self.create_mock_packet({'input_gear': 2})
+        msg = commentator.get_commentary(TelemetryData(data2))
+
+        self.assertIsNotNone(msg)
+        self.assertIn("Shifted to Gear 2", msg)
+
+    @patch('main.time.time')
+    def test_commentator_handbrake(self, mock_time):
+        mock_time.return_value = 100.0
+        commentator = Commentator()
+        data = self.create_mock_packet({'input_handbrake': 1})
+        packet = TelemetryData(data)
+
+        msg = commentator.get_commentary(packet)
+        self.assertIsNotNone(msg)
+        self.assertIn("Handbrake", msg)
 
 if __name__ == '__main__':
     unittest.main()
