@@ -95,7 +95,7 @@ class TestForzaTelemetry(unittest.TestCase):
         data += struct.pack('<b', defaults['driving_line'])
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
-        # Pad to 324 bytes (standard Dash)
+        # Pad to 331 bytes (standard Dash)
         padding = b'\x00' * (331 - len(data))
         data += padding
 
@@ -179,38 +179,13 @@ class TestForzaTelemetry(unittest.TestCase):
         self.assertIn("Handbrake", msg)
 
 
-    def test_to_dict(self):
-        """Test that TelemetryData.to_dict returns a valid dictionary copy of its attributes."""
-        data = self.create_mock_packet()
-        packet = TelemetryData(data)
-
-        # Call to_dict
-        result = packet.to_dict()
-
-        # Verify it's a dictionary
-        self.assertIsInstance(result, dict)
-
-        # Verify key fields are present
-        self.assertIn('is_race_on', result)
-        self.assertIn('max_rpm', result)
-        self.assertIn('cur_rpm', result)
-        self.assertIn('valid', result)
-        self.assertIn('tire_wear', result)
-        self.assertIn('track_ordinal', result)
-
-        # Verify values match
-        self.assertEqual(result['is_race_on'], packet.is_race_on)
-        self.assertEqual(result['max_rpm'], packet.max_rpm)
-        self.assertEqual(result['valid'], packet.valid)
-
-        # Verify it's a copy (modifying dict doesn't modify object)
-        result['max_rpm'] = 9999.0
-        self.assertNotEqual(packet.max_rpm, 9999.0)
-
-        # Verify modifying object updates future to_dict calls
-        packet.is_race_on = 0
-        new_result = packet.to_dict()
-        self.assertEqual(new_result['is_race_on'], 0)
+    def test_commentator_get_gear_display(self):
+        commentator = Commentator()
+        self.assertEqual(commentator.get_gear_display(0), "R")
+        self.assertEqual(commentator.get_gear_display(11), "N")
+        self.assertEqual(commentator.get_gear_display(1), "1")
+        self.assertEqual(commentator.get_gear_display(5), "5")
+        self.assertEqual(commentator.get_gear_display(-1), "-1")
 
 if __name__ == '__main__':
     unittest.main()

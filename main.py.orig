@@ -1,11 +1,11 @@
 import socket
 import struct
 import time
-import queue
 import os
 import threading
 import json
 import csv
+import sys
 
 # Try imports for Overlay (Tkinter/Windows API)
 try:
@@ -19,64 +19,51 @@ except ImportError:
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # --- CONFIGURATION ---
-UDP_IP = "0.0.0.0" 
+UDP_IP = "0.0.0.0"
 UDP_PORT = 5300
-WEB_IP = "127.0.0.1"
 WEB_PORT = 8000
 # OVERLAY_X is now calculated dynamically in the class to be on the right
-OVERLAY_Y = 50 
-
-
-# Precompiled struct format for Dash V2 telemetry data (331 bytes)
-TELEMETRY_FORMAT = "<i I 3f 3f 3f 3f 3f 4f 4f 4f 4i 4f 4f 4f 4f 4f 5i 3f f f f 4f 7f H B 5B b b b 4f i"
-TELEMETRY_STRUCT = struct.Struct(TELEMETRY_FORMAT)
+OVERLAY_Y = 50
 
 # --- SHARED TELEMETRY PARSER ---
-
 class TelemetryData:
     def __init__(self, data):
         self.valid = False
-        if len(data) < 331: return
+        if len(data) < 311: return
         self.valid = True
-        
-        # Pad data to ensure it's at least 331 bytes for the struct unpack
-        if len(data) < 331:
-            data = data.ljust(331, b'\x00')
 
         # Unpack Data (Standard Dash V2 Format)
-        unpacked = TELEMETRY_STRUCT.unpack(data[:331])
-
-        self.is_race_on = unpacked[0]
-        self.timestamp_ms = unpacked[1]
-        (self.max_rpm, self.idle_rpm, self.cur_rpm) = unpacked[2:5]
-        self.accel = unpacked[5:8]
-        self.velocity = unpacked[8:11]
-        self.angular_vel = unpacked[11:14]
-        self.orientation = unpacked[14:17]
-        self.norm_suspension = unpacked[17:21]
-        self.tire_slip_ratio = unpacked[21:25]
-        self.wheel_rotation = unpacked[25:29]
-        self.rumble_strip = unpacked[29:33]
-        self.puddle_depth = unpacked[33:37]
-        self.surface_rumble = unpacked[37:41]
-        self.slip_angle = unpacked[41:45]
-        self.combined_slip = unpacked[45:49]
-        self.susp_travel_meters = unpacked[49:53]
-        (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = unpacked[53:58]
-        self.position = unpacked[58:61]
-        self.speed = unpacked[61]
-        self.power = unpacked[62]
-        self.torque = unpacked[63]
-        self.tire_temp = unpacked[64:68]
-        (self.boost, self.fuel, self.dist, self.best_lap, self.last_lap, self.cur_lap, self.cur_race_time) = unpacked[68:75]
-        self.lap_number = unpacked[75]
-        self.race_pos = unpacked[76]
-        (self.input_accel, self.input_brake, self.input_clutch, self.input_handbrake, self.input_gear) = unpacked[77:82]
-        self.input_steer = unpacked[82]
-        self.driving_line = unpacked[83]
-        self.ai_brake_diff = unpacked[84]
-        self.tire_wear = unpacked[85:89]
-        self.track_ordinal = unpacked[89]
+        self.is_race_on = struct.unpack("<i", data[0:4])[0]
+        self.timestamp_ms = struct.unpack("<I", data[4:8])[0]
+        (self.max_rpm, self.idle_rpm, self.cur_rpm) = struct.unpack("<3f", data[8:20])
+        self.accel = struct.unpack("<3f", data[20:32])
+        self.velocity = struct.unpack("<3f", data[32:44])
+        self.angular_vel = struct.unpack("<3f", data[44:56])
+        self.orientation = struct.unpack("<3f", data[56:68])
+        self.norm_suspension = struct.unpack("<4f", data[68:84])
+        self.tire_slip_ratio = struct.unpack("<4f", data[84:100])
+        self.wheel_rotation = struct.unpack("<4f", data[100:116])
+        self.rumble_strip = struct.unpack("<4i", data[116:132])
+        self.puddle_depth = struct.unpack("<4f", data[132:148])
+        self.surface_rumble = struct.unpack("<4f", data[148:164])
+        self.slip_angle = struct.unpack("<4f", data[164:180])
+        self.combined_slip = struct.unpack("<4f", data[180:196])
+        self.susp_travel_meters = struct.unpack("<4f", data[196:212])
+        (self.car_ordinal, self.car_class, self.car_perf, self.drivetrain, self.cylinders) = struct.unpack("<5i", data[212:232])
+        self.position = struct.unpack("<3f", data[232:244])
+        self.speed = struct.unpack("<f", data[244:248])[0]
+        self.power = struct.unpack("<f", data[248:252])[0]
+        self.torque = struct.unpack("<f", data[252:256])[0]
+        self.tire_temp = struct.unpack("<4f", data[256:272])
+        (self.boost, self.fuel, self.dist, self.best_lap, self.last_lap, self.cur_lap, self.cur_race_time) = struct.unpack("<7f", data[272:300])
+        self.lap_number = struct.unpack("<H", data[300:302])[0]
+        self.race_pos = struct.unpack("<B", data[302:303])[0]
+        (self.input_accel, self.input_brake, self.input_clutch, self.input_handbrake, self.input_gear) = struct.unpack("<5B", data[303:308])
+        self.input_steer = struct.unpack("<b", data[308:309])[0]
+        self.driving_line = struct.unpack("<b", data[309:310])[0]
+        self.ai_brake_diff = struct.unpack("<b", data[310:311])[0]
+        self.tire_wear = struct.unpack("<4f", data[311:327])
+        self.track_ordinal = struct.unpack("<i", data[327:331])[0]
 
     def to_dict(self):
         return vars(self).copy()
@@ -86,7 +73,7 @@ class TelemetryData:
 # ==========================================
 
 current_telemetry = {
-    "rpm": 0, "speed": 0, "gear": "N", "position": 0, 
+    "rpm": 0, "speed": 0, "gear": "N", "position": 0,
     "lap": 0, "best_lap": 0.0, "track_id": 0, "race_on": False,
     "tire_wear": [100.0, 100.0, 100.0, 100.0],
     "tire_temp": [0, 0, 0, 0]
@@ -106,7 +93,7 @@ DASHBOARD_HTML = """
         .value { font-size: 2.5rem; font-weight: bold; }
         #gear-val { color: #00e5ff; font-size: 4rem; }
         #speed-val { color: #ffea00; }
-        #best-lap-val { color: #00e676; } 
+        #best-lap-val { color: #00e676; }
         .tire-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; justify-items: center; }
         .tire-box { background: #2a2a2a; padding: 10px; border-radius: 5px; display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; }
         .tire-header { display: flex; justify-content: space-between; width: 100%; font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
@@ -150,7 +137,7 @@ DASHBOARD_HTML = """
         async function fetchData() {
             try {
                 const res = await fetch('/data'); const data = await res.json();
-                if (data.race_on) { document.getElementById('status-icon').className = 'status-on'; document.getElementById('status-text').innerText = "RACE ACTIVE"; } 
+                if (data.race_on) { document.getElementById('status-icon').className = 'status-on'; document.getElementById('status-text').innerText = "RACE ACTIVE"; }
                 else { document.getElementById('status-icon').className = 'status-off'; document.getElementById('status-text').innerText = "PAUSED / MENU"; }
                 document.getElementById('gear-val').innerText = data.gear; document.getElementById('speed-val').innerText = data.speed;
                 document.getElementById('rpm-val').innerText = data.rpm; document.getElementById('pos-val').innerText = data.position;
@@ -171,20 +158,21 @@ DASHBOARD_HTML = """
 class Commentator:
     def __init__(self):
         self.last_comment_time = 0
-        self.last_gear = 11 
+        self.last_gear = 11
         self.was_race_on = 0
+        self.max_speed_hit = 0.0
         self.last_race_pos = 0
 
     def get_gear_display(self, gear_val):
         if gear_val == 0: return "R"
-        if gear_val == 11: return "N" 
+        if gear_val == 11: return "N"
         return str(gear_val)
 
     def get_commentary(self, packet):
         current_time = time.time()
         if current_time - self.last_comment_time < 0.2: return None
         msgs = []
-        priority = False 
+        priority = False
 
         if packet.is_race_on and not self.was_race_on: msgs.append("🟢 GREEN LIGHT! The race has started!"); priority = True
         elif not packet.is_race_on and self.was_race_on: msgs.append("⏸️ Race paused or in menus.")
@@ -200,7 +188,7 @@ class Commentator:
         rpm_percent = 0
         if packet.max_rpm > 0: rpm_percent = packet.cur_rpm / packet.max_rpm
         if rpm_percent > 0.95: msgs.append(f"🔴 REDLINING! Engine screaming at {int(packet.cur_rpm)} RPM!")
-        
+
         if packet.input_gear != self.last_gear:
             if packet.input_gear != 11:
                 display_gear = self.get_gear_display(packet.input_gear)
@@ -210,23 +198,14 @@ class Commentator:
 
         if packet.input_handbrake > 0: msgs.append("⚓ Handbrake pulled!")
         if packet.input_brake > 200: msgs.append("🛑 HARD BRAKING!")
-        max_slip = max(abs(x) for x in packet.tire_slip_ratio)
+        max_slip = max([abs(x) for x in packet.tire_slip_ratio])
         if max_slip > 1.2: msgs.append("💨 BURNOUT / DRIFT! Massive loss of traction!"); priority = True
         elif max_slip > 0.8: msgs.append("⚠️ Tires struggling for grip...")
-
-        # Combined Slip Commentary (Edge of Traction)
-        max_combined_slip = max([abs(x) for x in packet.combined_slip])
-        if 0.9 < max_combined_slip < 1.1:
-            msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
         max_puddle = max(packet.puddle_depth)
         if max_puddle > 0.5: msgs.append("💦 SPLASH! Hit a deep puddle!"); priority = True
-        if any(0.9 < abs(x) < 1.1 for x in packet.combined_slip): msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
         if any(x > 0.98 for x in packet.norm_suspension): msgs.append("💥 CRUNCH! Suspension bottomed out!"); priority = True
         mph = packet.speed * 2.23694
         if all(x < 0.1 for x in packet.norm_suspension) and mph > 20: msgs.append("🚀 AIRBORNE! All four wheels off the ground!"); priority = True
-
-        max_combined_slip = max([abs(x) for x in packet.combined_slip])
-        if max_combined_slip > 0.9 and max_combined_slip < 1.1: msgs.append("AT THE LIMIT! Dancing on the edge of traction!")
 
         if msgs:
             self.last_comment_time = current_time
@@ -244,33 +223,10 @@ class TelemetryRequestHandler(BaseHTTPRequestHandler):
         else: self.send_error(404)
     def log_message(self, format, *args): return
 
-
-def csv_logger_thread(q):
-    csv_file = None
-    csv_writer = None
-    while True:
-        msg = q.get()
-        if msg is None:
-            if csv_file: csv_file.close()
-            break
-        action, data = msg
-        if action == "START":
-            filename, fieldnames = data
-            csv_file = open(filename, 'w', newline='')
-            csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            csv_writer.writeheader()
-        elif action == "LOG":
-            if csv_writer: csv_writer.writerow(data)
-        elif action == "STOP":
-            if csv_file:
-                csv_file.close()
-                csv_file = None
-                csv_writer = None
-
 def run_web_mode():
     def start_web_server():
-        server = HTTPServer((WEB_IP, WEB_PORT), TelemetryRequestHandler)
-        print(f"🌐 Web Dashboard active at http://{WEB_IP}:{WEB_PORT}/")
+        server = HTTPServer(("", WEB_PORT), TelemetryRequestHandler)
+        print(f"🌐 Web Dashboard active at http://localhost:{WEB_PORT}/")
         server.serve_forever()
 
     web_thread = threading.Thread(target=start_web_server)
@@ -280,17 +236,15 @@ def run_web_mode():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((UDP_IP, UDP_PORT))
     print(f"🎧 Listening for UDP telemetry on {UDP_IP}:{UDP_PORT}...")
-    
+
     commentator = Commentator()
-    log_queue = queue.Queue()
-    logger_worker = threading.Thread(target=csv_logger_thread, args=(log_queue,))
-    logger_worker.daemon = True
-    logger_worker.start()
+    csv_file = None
+    csv_writer = None
     racing_active = False
 
     try:
         while True:
-            data, addr = sock.recvfrom(1024) 
+            data, addr = sock.recvfrom(1024)
             packet = TelemetryData(data)
             if not packet.valid: continue
 
@@ -320,22 +274,26 @@ def run_web_mode():
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     filename = f"race_log_{timestamp}.csv"
                     print(f"\n📝 Race started! Logging to {filename}")
+                    csv_file = open(filename, 'w', newline='')
                     packet_dict = packet.to_dict()
-                    log_queue.put(("START", (filename, packet_dict.keys())))
-                log_queue.put(("LOG", packet.to_dict()))
+                    csv_writer = csv.DictWriter(csv_file, fieldnames=packet_dict.keys())
+                    csv_writer.writeheader()
+                if csv_writer: csv_writer.writerow(packet.to_dict())
             else:
                 if racing_active:
                     racing_active = False
-                    print("📝 Race finished. Log file saved.\n")
-                    log_queue.put(("STOP", None))
+                    if csv_file:
+                        print("📝 Race finished. Log file saved.\n")
+                        csv_file.close()
+                        csv_file = None
+                        csv_writer = None
 
             # Commentary
             comment = commentator.get_commentary(packet)
             if comment: print(f"[{time.strftime('%H:%M:%S')}] {comment}")
 
     except KeyboardInterrupt:
-        log_queue.put(None)
-        logger_worker.join()
+        if csv_file: csv_file.close()
         print("\n🛑 Stopped.")
 
 # ==========================================
@@ -347,15 +305,15 @@ if TKINTER_AVAILABLE:
         def __init__(self, root):
             self.root = root
             self.root.title("Forza Overlay")
-            
+
             # Dynamic positioning: Right side of screen
             screen_width = self.root.winfo_screenwidth()
             window_width = 300
             # Calculate position: Screen Width - Window Width - 50px Padding
-            x_pos = screen_width - window_width - 50 
-            
+            x_pos = screen_width - window_width - 50
+
             self.root.geometry(f"{window_width}x450+{x_pos}+{OVERLAY_Y}")
-            
+
             self.root.overrideredirect(True)
             self.root.wm_attributes("-topmost", True)
             self.bg_color = "#010101"
@@ -448,7 +406,7 @@ if TKINTER_AVAILABLE:
                     data, _ = sock.recvfrom(1024)
                     packet = TelemetryData(data)
                     if packet.valid and packet.is_race_on: self.current_data = packet
-                except Exception as e: print(f"UDP Loop Error: {e}", file=sys.stderr)
+                except Exception: pass
 
 def run_overlay_mode():
     if not TKINTER_AVAILABLE:
@@ -456,7 +414,7 @@ def run_overlay_mode():
         return
     if os.name != 'nt':
         print("Warning: Transparent Overlay mode relies on Windows APIs. It may crash or fail on Linux/Mac.")
-    
+
     print("Starting Overlay... Press Ctrl+C in this terminal to exit.")
     root = tk.Tk()
     app = OverlayApp(root)
@@ -476,9 +434,9 @@ if __name__ == "__main__":
     print("1. Web Dashboard + CSV Logger + Commentary")
     print("2. Transparent Windows Overlay")
     print("=========================================")
-    
+
     choice = input("Select Mode (1 or 2): ").strip()
-    
+
     if choice == "1":
         print("\nLaunching Web Mode...")
         run_web_mode()

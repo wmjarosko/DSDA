@@ -1,0 +1,12 @@
+--- tests/test_main.py	2024-05-18 10:25:21.000000000 -0400
++++ tests/test_main.py	2024-05-18 10:25:21.000000000 -0400
+@@ -102,7 +102,7 @@
+         data += struct.pack('<b', defaults['ai_brake_diff'])
+
+-        # Pad to 324 bytes (standard Dash)
+-        padding = b'\x00' * (324 - len(data))
++        # Pad to 331 bytes (standard Dash)
++        padding = b'\x00' * (331 - len(data))
+         data += padding
+
+         return data
