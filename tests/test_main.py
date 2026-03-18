@@ -95,8 +95,8 @@ class TestForzaTelemetry(unittest.TestCase):
         data += struct.pack('<b', defaults['driving_line'])
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
-        # Pad to 324 bytes (standard Dash)
-        padding = b'\x00' * (324 - len(data))
+        # Pad to 331 bytes (standard Dash)
+        padding = b'\x00' * (331 - len(data))
         data += padding
 
         return data
