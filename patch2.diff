@@ -1,0 +1,21 @@
+--- tests/test_grip.py	2024-05-18 10:25:21.000000000 -0400
++++ tests/test_grip.py	2024-05-18 10:25:21.000000000 -0400
+@@ -102,7 +102,7 @@
+         data += struct.pack('<b', defaults['ai_brake_diff'])
+
+-        # Pad to 324 bytes (standard Dash)
+-        padding = b'\x00' * (324 - len(data))
++        # Pad to 331 bytes (standard Dash)
++        padding = b'\x00' * (331 - len(data))
+         data += padding
+
+         return data
+@@ -113,7 +113,7 @@
+
+         # Test case: Combined slip near 1.0 (limit)
+         # Using 0.95 which triggers > 0.9 check
+-        data = self.create_mock_packet({'combined_slip': (0.95, 0.95, 0.95, 0.95)})
++        data = self.create_mock_packet({'combined_slip': (0.95, 0.95, 0.95, 0.95), 'is_race_on': 0})
+         packet = TelemetryData(data)
+
+         msg = commentator.get_commentary(packet)
