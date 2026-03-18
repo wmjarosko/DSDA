@@ -21,6 +21,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 # --- CONFIGURATION ---
 UDP_IP = "0.0.0.0" 
 UDP_PORT = 5300
+WEB_IP = "127.0.0.1"
 WEB_PORT = 8000
 # OVERLAY_X is now calculated dynamically in the class to be on the right
 OVERLAY_Y = 50 
@@ -35,7 +36,7 @@ TELEMETRY_STRUCT = struct.Struct(TELEMETRY_FORMAT)
 class TelemetryData:
     def __init__(self, data):
         self.valid = False
-        if len(data) < 311: return
+        if len(data) < 331: return
         self.valid = True
         
         # Pad data to ensure it's at least 331 bytes for the struct unpack
@@ -212,6 +213,11 @@ class Commentator:
         max_slip = max(abs(x) for x in packet.tire_slip_ratio)
         if max_slip > 1.2: msgs.append("💨 BURNOUT / DRIFT! Massive loss of traction!"); priority = True
         elif max_slip > 0.8: msgs.append("⚠️ Tires struggling for grip...")
+
+        # Combined Slip Commentary (Edge of Traction)
+        max_combined_slip = max([abs(x) for x in packet.combined_slip])
+        if 0.9 < max_combined_slip < 1.1:
+            msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
         max_puddle = max(packet.puddle_depth)
         if max_puddle > 0.5: msgs.append("💦 SPLASH! Hit a deep puddle!"); priority = True
         if any(0.9 < abs(x) < 1.1 for x in packet.combined_slip): msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
@@ -263,8 +269,8 @@ def csv_logger_thread(q):
 
 def run_web_mode():
     def start_web_server():
-        server = HTTPServer(("", WEB_PORT), TelemetryRequestHandler)
-        print(f"🌐 Web Dashboard active at http://localhost:{WEB_PORT}/")
+        server = HTTPServer((WEB_IP, WEB_PORT), TelemetryRequestHandler)
+        print(f"🌐 Web Dashboard active at http://{WEB_IP}:{WEB_PORT}/")
         server.serve_forever()
 
     web_thread = threading.Thread(target=start_web_server)
