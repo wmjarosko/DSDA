@@ -420,7 +420,7 @@ if TKINTER_AVAILABLE:
                     data, _ = sock.recvfrom(1024)
                     packet = TelemetryData(data)
                     if packet.valid and packet.is_race_on: self.current_data = packet
-                except Exception: pass
+                except Exception as e: print(f"UDP Loop Error: {e}", file=sys.stderr)
 
 def run_overlay_mode():
     if not TKINTER_AVAILABLE:
