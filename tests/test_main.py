@@ -178,5 +178,14 @@ class TestForzaTelemetry(unittest.TestCase):
         self.assertIsNotNone(msg)
         self.assertIn("Handbrake", msg)
 
+
+    def test_commentator_get_gear_display(self):
+        commentator = Commentator()
+        self.assertEqual(commentator.get_gear_display(0), "R")
+        self.assertEqual(commentator.get_gear_display(11), "N")
+        self.assertEqual(commentator.get_gear_display(1), "1")
+        self.assertEqual(commentator.get_gear_display(5), "5")
+        self.assertEqual(commentator.get_gear_display(-1), "-1")
+
 if __name__ == '__main__':
     unittest.main()
