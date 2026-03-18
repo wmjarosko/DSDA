@@ -19,7 +19,7 @@ except ImportError:
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # --- CONFIGURATION ---
-UDP_IP = "0.0.0.0" 
+UDP_IP = "127.0.0.1"
 UDP_PORT = 5300
 WEB_IP = "127.0.0.1"
 WEB_PORT = 8000
@@ -208,6 +208,8 @@ class Commentator:
                 priority = True
             self.last_gear = packet.input_gear
 
+        max_combined_slip = max(packet.combined_slip)
+        if 0.9 <= max_combined_slip <= 1.1: msgs.append("🔥 AT THE LIMIT! Dancing on the edge of traction!"); priority = True
         if packet.input_handbrake > 0: msgs.append("⚓ Handbrake pulled!")
         if packet.input_brake > 200: msgs.append("🛑 HARD BRAKING!")
         max_slip = max(abs(x) for x in packet.tire_slip_ratio)
