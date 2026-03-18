@@ -28,7 +28,7 @@ class TestGrip(unittest.TestCase):
             'puddle_depth': (0.0, 0.0, 0.0, 0.0),
             'surface_rumble': (0.0, 0.0, 0.0, 0.0),
             'slip_angle': (0.0, 0.0, 0.0, 0.0),
-            'tire_slip_ratio': (0.0, 0.0, 0.0, 0.0),
+            'combined_slip': (0.0, 0.0, 0.0, 0.0),
             'susp_travel_meters': (0.0, 0.0, 0.0, 0.0),
             'car_ordinal': 123,
             'car_class': 1,
@@ -78,7 +78,7 @@ class TestGrip(unittest.TestCase):
         data += struct.pack('<4f', *defaults['puddle_depth'])
         data += struct.pack('<4f', *defaults['surface_rumble'])
         data += struct.pack('<4f', *defaults['slip_angle'])
-        data += struct.pack('<4f', *defaults['tire_slip_ratio'])
+        data += struct.pack('<4f', *defaults['combined_slip'])
         data += struct.pack('<4f', *defaults['susp_travel_meters'])
         data += struct.pack('<5i', defaults['car_ordinal'], defaults['car_class'], defaults['car_perf'], defaults['drivetrain'], defaults['cylinders'])
         data += struct.pack('<3f', *defaults['position'])
@@ -94,8 +94,8 @@ class TestGrip(unittest.TestCase):
         data += struct.pack('<b', defaults['driving_line'])
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
-        # Pad to 331 bytes (standard Dash)
-        padding = b'\x00' * (331 - len(data))
+        # Pad to 324 bytes (standard Dash)
+        padding = b'\x00' * (324 - len(data))
         data += padding
 
         return data
@@ -107,16 +107,16 @@ class TestGrip(unittest.TestCase):
 
         # Test case: Combined slip near 1.0 (limit)
         # Using 0.95 which triggers > 0.9 check
-        data = self.create_mock_packet({'tire_slip_ratio': (0.9, 0.9, 0.9, 0.9)})
+        data = self.create_mock_packet({'combined_slip': (0.95, 0.95, 0.95, 0.95)})
         packet = TelemetryData(data)
 
         msg = commentator.get_commentary(packet)
         self.assertIsNotNone(msg)
-        self.assertIn("GREEN LIGHT", msg)
+        self.assertIn("AT THE LIMIT", msg)
 
         # Test case: Low slip (no commentary)
         mock_time.return_value = 101.0
-        data2 = self.create_mock_packet({'tire_slip_ratio': (0.5, 0.5, 0.5, 0.5)})
+        data2 = self.create_mock_packet({'combined_slip': (0.5, 0.5, 0.5, 0.5)})
         packet2 = TelemetryData(data2)
 
         msg2 = commentator.get_commentary(packet2)

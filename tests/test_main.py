@@ -95,7 +95,7 @@ class TestForzaTelemetry(unittest.TestCase):
         data += struct.pack('<b', defaults['driving_line'])
         data += struct.pack('<b', defaults['ai_brake_diff'])
 
-        # Pad to 324 bytes (standard Dash)
+        # Pad to 331 bytes (standard Dash)
         padding = b'\x00' * (331 - len(data))
         data += padding
 
@@ -177,6 +177,15 @@ class TestForzaTelemetry(unittest.TestCase):
         msg = commentator.get_commentary(packet)
         self.assertIsNotNone(msg)
         self.assertIn("Handbrake", msg)
+
+
+    def test_commentator_get_gear_display(self):
+        commentator = Commentator()
+        self.assertEqual(commentator.get_gear_display(0), "R")
+        self.assertEqual(commentator.get_gear_display(11), "N")
+        self.assertEqual(commentator.get_gear_display(1), "1")
+        self.assertEqual(commentator.get_gear_display(5), "5")
+        self.assertEqual(commentator.get_gear_display(-1), "-1")
 
 if __name__ == '__main__':
     unittest.main()
