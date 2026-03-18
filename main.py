@@ -1,6 +1,7 @@
 import socket
 import struct
 import time
+import queue
 import os
 import threading
 import json
@@ -237,6 +238,29 @@ class TelemetryRequestHandler(BaseHTTPRequestHandler):
         else: self.send_error(404)
     def log_message(self, format, *args): return
 
+
+def csv_logger_thread(q):
+    csv_file = None
+    csv_writer = None
+    while True:
+        msg = q.get()
+        if msg is None:
+            if csv_file: csv_file.close()
+            break
+        action, data = msg
+        if action == "START":
+            filename, fieldnames = data
+            csv_file = open(filename, 'w', newline='')
+            csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            csv_writer.writeheader()
+        elif action == "LOG":
+            if csv_writer: csv_writer.writerow(data)
+        elif action == "STOP":
+            if csv_file:
+                csv_file.close()
+                csv_file = None
+                csv_writer = None
+
 def run_web_mode():
     def start_web_server():
         server = HTTPServer(("", WEB_PORT), TelemetryRequestHandler)
@@ -252,8 +276,10 @@ def run_web_mode():
     print(f"🎧 Listening for UDP telemetry on {UDP_IP}:{UDP_PORT}...")
     
     commentator = Commentator()
-    csv_file = None
-    csv_writer = None
+    log_queue = queue.Queue()
+    logger_worker = threading.Thread(target=csv_logger_thread, args=(log_queue,))
+    logger_worker.daemon = True
+    logger_worker.start()
     racing_active = False
 
     try:
@@ -288,26 +314,22 @@ def run_web_mode():
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     filename = f"race_log_{timestamp}.csv"
                     print(f"\n📝 Race started! Logging to {filename}")
-                    csv_file = open(filename, 'w', newline='')
                     packet_dict = packet.to_dict()
-                    csv_writer = csv.DictWriter(csv_file, fieldnames=packet_dict.keys())
-                    csv_writer.writeheader()
-                if csv_writer: csv_writer.writerow(packet.to_dict())
+                    log_queue.put(("START", (filename, packet_dict.keys())))
+                log_queue.put(("LOG", packet.to_dict()))
             else:
                 if racing_active:
                     racing_active = False
-                    if csv_file:
-                        print("📝 Race finished. Log file saved.\n")
-                        csv_file.close()
-                        csv_file = None
-                        csv_writer = None
+                    print("📝 Race finished. Log file saved.\n")
+                    log_queue.put(("STOP", None))
 
             # Commentary
             comment = commentator.get_commentary(packet)
             if comment: print(f"[{time.strftime('%H:%M:%S')}] {comment}")
 
     except KeyboardInterrupt:
-        if csv_file: csv_file.close()
+        log_queue.put(None)
+        logger_worker.join()
         print("\n🛑 Stopped.")
 
 # ==========================================
