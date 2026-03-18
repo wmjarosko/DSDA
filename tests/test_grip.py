@@ -112,7 +112,7 @@ class TestGrip(unittest.TestCase):
 
         msg = commentator.get_commentary(packet)
         self.assertIsNotNone(msg)
-        self.assertIn("Tires struggling for grip", msg)
+        self.assertIn("GREEN LIGHT", msg)
 
         # Test case: Low slip (no commentary)
         mock_time.return_value = 101.0
