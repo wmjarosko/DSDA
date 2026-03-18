@@ -160,7 +160,6 @@ class Commentator:
         self.last_comment_time = 0
         self.last_gear = 11 
         self.was_race_on = 0
-        self.max_speed_hit = 0.0
         self.last_race_pos = 0
 
     def get_gear_display(self, gear_val):
