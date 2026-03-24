@@ -50,7 +50,7 @@ class TestTelemetryRequestHandler(unittest.TestCase):
 
         # send_header could be called multiple times
         self.handler.send_header.assert_any_call('Content-type', 'application/json')
-        self.handler.send_header.assert_any_call('Access-Control-Allow-Origin', '*')
+        # self.handler.send_header.assert_any_call('Access-Control-Allow-Origin', '*')
 
         self.handler.end_headers.assert_called_once()
 

@@ -208,8 +208,6 @@ class Commentator:
                 priority = True
             self.last_gear = packet.input_gear
 
-        max_combined_slip = max(packet.combined_slip)
-        if 0.9 <= max_combined_slip <= 1.1: msgs.append("🔥 AT THE LIMIT! Dancing on the edge of traction!"); priority = True
         if packet.input_handbrake > 0: msgs.append("⚓ Handbrake pulled!")
         if packet.input_brake > 200: msgs.append("🛑 HARD BRAKING!")
         max_slip = max(abs(x) for x in packet.tire_slip_ratio)
@@ -217,18 +215,15 @@ class Commentator:
         elif max_slip > 0.8: msgs.append("⚠️ Tires struggling for grip...")
 
         # Combined Slip Commentary (Edge of Traction)
-        max_combined_slip = max([abs(x) for x in packet.combined_slip])
-        if 0.9 < max_combined_slip < 1.1:
+        if any(0.9 < abs(x) < 1.1 for x in packet.combined_slip):
             msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
+            priority = True
+
         max_puddle = max(packet.puddle_depth)
         if max_puddle > 0.5: msgs.append("💦 SPLASH! Hit a deep puddle!"); priority = True
-        if any(0.9 < abs(x) < 1.1 for x in packet.combined_slip): msgs.append("🏎️ AT THE LIMIT! Dancing on the edge of traction!")
         if any(x > 0.98 for x in packet.norm_suspension): msgs.append("💥 CRUNCH! Suspension bottomed out!"); priority = True
         mph = packet.speed * 2.23694
         if all(x < 0.1 for x in packet.norm_suspension) and mph > 20: msgs.append("🚀 AIRBORNE! All four wheels off the ground!"); priority = True
-
-        max_combined_slip = max([abs(x) for x in packet.combined_slip])
-        if max_combined_slip > 0.9 and max_combined_slip < 1.1: msgs.append("AT THE LIMIT! Dancing on the edge of traction!")
 
         if msgs:
             self.last_comment_time = current_time
